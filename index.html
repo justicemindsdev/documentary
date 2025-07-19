@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBC Documentary Maker - Professional AI-Powered System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.6/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style/main.css">
+</head>
+<body>
+    <!-- AI Model Status -->
+    <div class="model-status">
+        <span class="model-indicator"></span>
+        <span id="currentModel">DeepSeek AI Ready</span>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
+
+    <div class="app-container">
+        <!-- Collapsible Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">Video Library</h2>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <span id="toggleIcon">‹</span>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="video-library">
+                    <div class="section-header">Generated Videos</div>
+                    <div id="videoLibrary">
+                        <!-- Demo video -->
+                        <div class="video-item" onclick="loadVideo('demo')">
+                            <div class="video-title">Demo: Legal Documentary</div>
+                            <div class="video-meta">2m 34s • 6 segments</div>
+                            <div class="video-actions">
+                                <button class="action-btn" onclick="event.stopPropagation(); playVideo('demo')">Play</button>
+                                <button class="action-btn" onclick="event.stopPropagation(); shareVideo('demo')">Share</button>
+                                <button class="action-btn" onclick="event.stopPropagation(); editVideo('demo')">Edit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions">
+                    <div class="section-header">Quick Actions</div>
+                    <button class="quick-btn" onclick="newProject()">
+                        <span class="btn-text">📁 New Project</span>
+                        <span class="btn-icon">📁</span>
+                    </button>
+                    <button class="quick-btn" onclick="importVideo()">
+                        <span class="btn-text">📥 Import Video</span>
+                        <span class="btn-icon">📥</span>
+                    </button>
+                    <button class="quick-btn" onclick="openSettings()">
+                        <span class="btn-text">⚙️ Settings</span>
+                        <span class="btn-icon">⚙️</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- BBC Documentary Player -->
+            <div class="documentary-player">
+                <div class="video-container">
+                    <video class="main-video" id="mainVideo" controls poster="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI2NzUiIHZpZXdCb3g9IjAgMCAxMjAwIDY3NSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjEyMDAiIGhlaWdodD0iNjc1IiBmaWxsPSIjMkMyQzJDIi8+Cjwvc3ZnPg==">
+                        <source src="" type="video/mp4">
+                    </video>
+                    
+                        <div class="video-overlay" id="videoOverlay">
+                        <h1 class="documentary-title" id="docTitle">Architecture of a Judge's Conscious Surgical Truth</h1>
+                        <p class="documentary-summary" id="docSummary">Advanced Multi-model computational powered legal advocacy documentation - training systems combining sophisticated analytical capabilities with transformative consciousness-raising methodologies. REVOLUTIONARY LEGAL INTELLIGENCE PLATFORM: Professional Ben Mak, HonD.SocSci (nom.), OBE (endorsed) has engineered a groundbreaking Ontological Legal Framework - an adaptive system that transforms raw human experience into forensically-precise legal consciousness. This isn't content creation; it's cognitive sovereignty engineering.</p>
+                        
+                        <div class="clip-timeline" id="clipTimeline">
+                            <!-- Dynamic clip markers will appear here -->
+                        </div>
+                        
+                        <div class="playback-controls">
+                            <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+                            <div class="progress-container">
+                                <div class="progress-bar" onclick="seek(event)">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+                            </div>
+                            <div class="control-buttons">
+                                <button class="control-btn" onclick="playTrailer()">Play Full Trailer</button>
+                                <button class="control-btn" onclick="exportCurrentView()">Export Current</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Upload Section -->
+                <div class="upload-section">
+                    <div class="upload-header">
+                        <h2 class="upload-title">Create Your Documentary</h2>
+                        <p class="upload-subtitle">Upload your content and let AI create professional documentary segments</p>
+                    </div>
+                    
+                    <div class="upload-grid">
+                        <div class="upload-box" id="videoUpload" onclick="document.getElementById('videoFile').click()">
+                            <div class="upload-icon">🎬</div>
+                            <h3>Video Content</h3>
+                            <p>Upload your video file</p>
+                            <p style="font-size: 12px; opacity: 0.7; margin-top: 10px;">MP4, MOV, AVI supported</p>
+                            <input type="file" id="videoFile" accept="video/*" style="display: none;">
+                        </div>
+
+                        <div class="upload-box" id="transcriptUpload" onclick="document.getElementById('transcriptFile').click()">
+                            <div class="upload-icon">📝</div>
+                            <h3>Transcript</h3>
+                            <p>Upload transcript or paste text</p>
+                            <p style="font-size: 12px; opacity: 0.7; margin-top: 10px;">SRT, VTT, TXT, PDF supported</p>
+                            <input type="file" id="transcriptFile" accept=".srt,.vtt,.txt,.pdf" style="display: none;">
+                            <textarea id="transcriptText" placeholder="Or paste transcript here..." style="width: 100%; height: 100px; margin-top: 10px; padding: 10px; border-radius: 5px; border: 1px solid #555; background: rgba(255,255,255,0.1); color: white; display: none;"></textarea>
+                        </div>
+
+                        <div class="upload-box" id="documentsUpload" onclick="document.getElementById('documentsFile').click()">
+                            <div class="upload-icon">📄</div>
+                            <h3>Documents</h3>
+                            <p>Additional research materials</p>
+                            <p style="font-size: 12px; opacity: 0.7; margin-top: 10px;">PDF, DOC supported</p>
+                            <input type="file" id="documentsFile" accept=".pdf,.doc,.docx" multiple style="display: none;">
+                        </div>
+                    </div>
+
+                    <div class="ai-controls">
+                        <div class="prompt-container">
+                            <textarea 
+                                id="customPrompt" 
+                                class="prompt-input" 
+                                placeholder="Enter your documentary vision: 'Create emotional highlights focusing on personal revelations' or 'Extract legal competence discussions with courtroom drama style' or 'Generate BBC documentary style with narrative arc'...">
+                            </textarea>
+                        </div>
+                        <button id="generateClips" class="generate-btn" onclick="generateDocumentaryClips()">
+                            Generate Documentary
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Overlay -->
+            <div class="processing-overlay" id="processingOverlay">
+                <div class="processing-content">
+                    <div class="spinner"></div>
+                    <div class="processing-text" id="processingText">Analyzing content with surgical precision...</div>
+                    <div class="processing-subtext" id="processingSubtext">Using advanced AI to identify narrative moments</div>
+                </div>
+            </div>
+
+            <!-- Documentary Clips Section -->
+            <div class="clips-section hidden" id="clipsSection">
+                <div class="clips-header">
+                    <h2 class="clips-title">Documentary Segments</h2>
+                    <p class="clips-subtitle">AI-generated clips with frame-perfect timing and narrative structure</p>
+                </div>
+                <div class="clips-grid" id="clipsGrid">
+                    <!-- Generated clips will appear here -->
+                </div>
+            </div>
+
+            <!-- Share Container -->
+            <div class="share-container">
+                <button class="share-button" onclick="shareTwitter()">𝕏 X</button>
+                <button class="share-button" onclick="shareFacebook()">📱 Facebook</button>
+                <button class="share-button" onclick="shareInstagram()">📷 Instagram</button>
+                <button class="share-button" onclick="copyLink()">🔗 Copy Link</button>
+            </div>
+
+            <!-- Metadata Bar -->
+            <div class="metadata-bar">
+                <div class="stat">
+                    <span class="stat-number" id="clipsCount">0</span>
+                    <span class="stat-label">Clips</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="totalDuration">0m</span>
+                    <span class="stat-label">Duration</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="confidenceScore">--</span>
+                    <span class="stat-label">Confidence</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="themesCount">0</span>
+                    <span class="stat-label">Themes</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="core/media-intelligence.js"></script>
+    <script src="media-apis/broll-provider.js"></script>
+    <script src="media-apis/music-provider.js"></script>
+    <script src="core/engine.js"></script>
+</body>
+</html>
