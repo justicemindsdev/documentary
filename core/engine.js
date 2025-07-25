@@ -1,4 +1,4 @@
-// Load configuration with production credentials
+e// Load configuration with production credentials
 const AI_MODELS = {
     deepseek: { 
         description: 'Active Forensic Intelligence',
@@ -45,12 +45,16 @@ const supabase = window.supabase ? window.supabase.createClient(
                 this.brollProvider = new BRollProvider();
                 this.musicProvider = new MusicProvider();
                 
+                // Initialize new processing systems
+                this.overlayEngine = null;
+                this.jsonExporter = new DocumentaryJSONExporter();
+                
                 this.initializeEventListeners();
                 this.updateModelStatus();
                 this.loadVideoLibrary();
                 this.setupDragAndDrop();
                 
-                console.log('🎬 BBC Documentary Maker with AI Media Intelligence initialized');
+                console.log('🎬 BBC Documentary Maker with AI Media Intelligence and Algorithmic Cutting initialized');
             }
 
             initializeEventListeners() {
@@ -125,6 +129,12 @@ const supabase = window.supabase ? window.supabase.createClient(
                 
                 const mainVideo = document.getElementById('mainVideo');
                 mainVideo.src = videoUrl;
+                
+                // Initialize overlay engine when video is loaded
+                mainVideo.addEventListener('loadedmetadata', () => {
+                    this.overlayEngine = new VideoOverlayEngine(mainVideo);
+                    console.log('🎭 Video overlay engine initialized');
+                });
                 
                 this.updateUploadStatus('videoUpload', `✅ ${file.name}`, 'success');
                 this.updateDocumentaryTitle(`Documentary: ${file.name.replace(/\.[^/.]+$/, "")}`);
@@ -270,81 +280,145 @@ const supabase = window.supabase ? window.supabase.createClient(
             }
 
             async generateDocumentaryClips() {
-                if (!this.video) {
-                    alert('Please upload a video file');
-                    return;
-                }
-                
-                // If no transcript, create a demo one based on the Ben/Chris video
-                if (!this.transcript || this.transcript.length === 0) {
-                    this.transcript = [
-                        { start: 0, end: 30000, text: "This is Ben Chris, and I want to tell you about a journey that changed everything. For years, I worked within the legal system, believing in justice, but what I discovered was something much more complex." },
-                        { start: 30000, end: 60000, text: "The case that transformed my understanding involved survivors who had been failed by the very system meant to protect them. Their stories revealed systemic issues that went deeper than I ever imagined." },
-                        { start: 60000, end: 90000, text: "I never told anyone this before, but there was a moment when I realized that being a legal professional meant being part of something larger - a responsibility to transform how justice works." },
-                        { start: 90000, end: 120000, text: "Working with Survivors UK opened my eyes to the importance of advocacy that goes beyond traditional legal frameworks. It's about creating spaces where truth can be heard." },
-                        { start: 120000, end: 150000, text: "The work continues. Every case, every story, every step forward is part of building a legal system that truly serves those who need it most. This is our mission." }
-                    ];
-                }
-
                 const customPrompt = document.getElementById('customPrompt').value.trim();
                 
-                this.showProcessing('🎬 Analyzing content with AI media intelligence...', 'Phase 1: Content analysis and theme extraction');
+                // Check if we have transcript data
+                if (!this.transcript || this.transcript.length === 0) {
+                    alert('Please upload a transcript or paste text content first.');
+                    return;
+                }
+
+                this.showProcessing('🎬 Analyzing transcript content...', 'Processing your content for documentary segments');
                 document.getElementById('generateClips').disabled = true;
 
                 try {
-                    // Phase 1: Comprehensive Media Analysis
-                    this.showProcessing('🎬 Running comprehensive media analysis...', 'Extracting themes, emotions, and visual characteristics');
-                    const mediaAnalysis = await this.mediaIntelligence.analyzeSourceContent(this.video, this.transcript);
+                    // Use the improved transcript analyzer (no expensive API calls)
+                    const analyzer = new TranscriptAnalyzer();
                     
-                    console.log('📊 Media Analysis Results:', mediaAnalysis);
+                    this.showProcessing('📊 Extracting meaningful segments...', 'Identifying key moments and themes');
+                    const segments = await analyzer.analyzeTranscript(this.transcript, customPrompt);
                     
-                    // Phase 2: Generate documentary clips with enhanced AI
-                    this.showProcessing('🎭 Creating documentary structure...', 'Generating clips with narrative precision');
-                    this.currentModel = this.selectOptimalModel('creative');
-                    this.updateModelStatus();
-
-                    const clips = await this.analyzeTranscriptWithEnhancedAI(customPrompt, mediaAnalysis);
-                    this.clips = clips;
-                    
-                    // Phase 3: Search for B-roll footage
-                    this.showProcessing('🎥 Searching for B-roll footage...', 'Finding professional footage from multiple providers');
-                    const brollResults = await this.brollProvider.searchBRoll(mediaAnalysis.brollSuggestions, mediaAnalysis.themes);
-                    
-                    console.log('🎬 B-roll Results:', brollResults);
-                    
-                    // Phase 4: Generate music score
-                    this.showProcessing('🎵 Creating documentary music score...', 'Composing dynamic audio that matches emotional beats');
-                    const musicScore = await this.musicProvider.createDocumentaryScore(
-                        { emotions: mediaAnalysis.emotions, pace: mediaAnalysis.pace },
-                        mediaAnalysis.themes,
-                        mediaAnalysis.pace
-                    );
-                    
-                    console.log('🎼 Music Score:', musicScore);
-                    
-                    // Phase 5: Enhanced display with media intelligence
-                    this.showProcessing('✨ Finalizing documentary...', 'Integrating clips, B-roll, and music');
-                    this.displayEnhancedClips(clips, brollResults, musicScore, mediaAnalysis);
-                    this.updateMetadata(clips);
-                    
-                    // Save enhanced project to Supabase
-                    await this.saveProjectToSupabase({
-                        title: document.getElementById('docTitle').textContent,
-                        clips_data: JSON.stringify(clips),
-                        broll_data: JSON.stringify(brollResults),
-                        music_data: JSON.stringify(musicScore),
-                        media_analysis: JSON.stringify(mediaAnalysis),
-                        total_clips: clips.length,
-                        created_at: new Date().toISOString()
-                    });
+                    if (segments && segments.length > 0) {
+                        this.clips = segments;
+                        this.showProcessing('✨ Finalizing documentary...', 'Preparing clips for display');
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        this.displayClips(segments);
+                        this.updateMetadata(segments);
+                        
+                        // Load overlays into video player
+                        if (this.overlayEngine) {
+                            this.overlayEngine.loadSegmentOverlays(segments);
+                        }
+                        
+                        // Save to local library
+                        this.addToVideoLibrary({
+                            title: document.getElementById('docTitle').textContent,
+                            total_clips: segments.length,
+                            created_at: new Date().toISOString()
+                        });
+                        
+                        // Add export JSON button
+                        this.addExportJSONButton(segments);
+                        
+                        console.log('✅ Documentary generated successfully:', segments.length, 'segments');
+                    } else {
+                        throw new Error('No segments could be generated from the transcript');
+                    }
                     
                 } catch (error) {
-                    console.error('Error generating enhanced documentary:', error);
-                    alert('Error generating documentary. Please try again.');
+                    console.error('Error generating documentary:', error);
+                    alert('Error generating documentary. Please check your transcript and try again.');
                 } finally {
                     this.hideProcessing();
                     document.getElementById('generateClips').disabled = false;
                 }
+            }
+
+            createDemoMediaAnalysis() {
+                return {
+                    themes: ['Legal Justice', 'Personal Transformation', 'Advocacy', 'Survivor Support', 'System Reform'],
+                    emotions: [
+                        { emotion: 'contemplative', intensity: 7, timestamp: 0 },
+                        { emotion: 'determined', intensity: 8, timestamp: 30000 },
+                        { emotion: 'revelatory', intensity: 9, timestamp: 60000 },
+                        { emotion: 'inspiring', intensity: 8, timestamp: 90000 },
+                        { emotion: 'hopeful', intensity: 8, timestamp: 120000 }
+                    ],
+                    pace: 'measured and deliberate',
+                    visualStyle: {
+                        colorPalette: ['deep blue', 'warm gold', 'soft white'],
+                        composition: 'intimate documentary style'
+                    },
+                    musicMood: {
+                        primary: 'contemplative and building',
+                        secondary: 'hopeful resolution'
+                    },
+                    brollSuggestions: [
+                        { query: 'courthouse exterior', category: 'legal', priority: 'high' },
+                        { query: 'justice scales', category: 'symbolic', priority: 'high' },
+                        { query: 'sunrise new beginning', category: 'emotional', priority: 'medium' },
+                        { query: 'hope light window', category: 'atmospheric', priority: 'medium' },
+                        { query: 'road ahead future', category: 'journey', priority: 'high' }
+                    ]
+                };
+            }
+
+            createDemoBrollResults() {
+                return {
+                    high_priority: [
+                        {
+                            title: 'Courthouse Justice Exterior',
+                            thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMkMyQzJDIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Q291cnRob3VzZTwvdGV4dD4KPC9zdmc+',
+                            search_query: 'courthouse exterior justice',
+                            suggestion_category: 'legal'
+                        },
+                        {
+                            title: 'Justice Scales Symbolic',
+                            thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjRjM5QzEyIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SnVzdGljZSBTY2FsZXM8L3RleHQ+Cjwvc3ZnPg==',
+                            search_query: 'justice scales',
+                            suggestion_category: 'symbolic'
+                        }
+                    ],
+                    medium_priority: [
+                        {
+                            title: 'Hope and Light',
+                            thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjM0Y4M0Y4Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SG9wZSAmIExpZ2h0PC90ZXh0Pgo8L3N2Zz4=',
+                            search_query: 'hope light window',
+                            suggestion_category: 'atmospheric'
+                        }
+                    ],
+                    low_priority: [
+                        {
+                            title: 'Future Journey',
+                            thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMTBCOTgxIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+RnV0dXJlIEpvdXJuZXk8L3RleHQ+Cjwvc3ZnPg==',
+                            search_query: 'road ahead future',
+                            suggestion_category: 'journey'
+                        }
+                    ],
+                    metadata: {
+                        total_results: 4,
+                        search_time_ms: 1200
+                    }
+                };
+            }
+
+            createDemoMusicScore() {
+                return {
+                    emotional_stings: [
+                        { timestamp: 60000, mood: 'revelation', duration: 3000 },
+                        { timestamp: 120000, mood: 'hope', duration: 2000 }
+                    ],
+                    metadata: {
+                        mood_progression: [
+                            { timestamp: 0, mood: 'contemplative' },
+                            { timestamp: 30000, mood: 'building' },
+                            { timestamp: 60000, mood: 'dramatic' },
+                            { timestamp: 90000, mood: 'inspiring' },
+                            { timestamp: 120000, mood: 'hopeful' }
+                        ]
+                    }
+                };
             }
 
             async analyzeTranscriptWithEnhancedAI(customPrompt, mediaAnalysis) {
@@ -1017,6 +1091,139 @@ Generate 8-12 clips that would create a professional BBC/Netflix quality documen
             exportClip(clipIndex) {
                 const clip = this.clips[clipIndex];
                 alert(`Export clip "${clip.title}"\nStart: ${clip.displayStart}\nEnd: ${clip.displayEnd}\n\nIn production, this would export the video segment.`);
+            }
+
+            /**
+             * Preview clip with overlays
+             */
+            previewWithOverlays(clipIndex) {
+                const clip = this.clips[clipIndex];
+                
+                if (this.overlayEngine) {
+                    // Jump to clip and show overlays
+                    this.jumpToClip(clipIndex);
+                    
+                    // Add preview overlay
+                    this.overlayEngine.addEmergencyOverlay(
+                        `Preview: ${clip.title}`,
+                        'bbc-title',
+                        3000
+                    );
+                    
+                    console.log(`🎭 Previewing clip "${clip.title}" with overlays`);
+                } else {
+                    alert('Overlay engine not initialized. Please upload a video first.');
+                }
+            }
+
+            /**
+             * Add export JSON button to interface
+             */
+            addExportJSONButton(segments) {
+                // Check if button already exists
+                if (document.getElementById('exportJSONBtn')) return;
+                
+                const clipsSection = document.getElementById('clipsSection');
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'export-controls';
+                buttonContainer.style.cssText = 'margin: 20px 0; text-align: center; padding: 20px; background: rgba(0,0,0,0.1); border-radius: 10px;';
+                
+                buttonContainer.innerHTML = `
+                    <h3 style="color: #ffffff; margin-bottom: 15px;">🎬 Algorithmic Video Processing</h3>
+                    <button id="exportJSONBtn" class="action-btn" style="background: #c41e3a; color: white; padding: 12px 25px; margin: 0 10px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer;">
+                        📄 Export Processing JSON
+                    </button>
+                    <button id="exportSummaryBtn" class="action-btn" style="background: #2196F3; color: white; padding: 12px 25px; margin: 0 10px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer;">
+                        📊 View Summary
+                    </button>
+                    <button id="clearOverlaysBtn" class="action-btn" style="background: #FF9800; color: white; padding: 12px 25px; margin: 0 10px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer;">
+                        🧹 Clear Overlays
+                    </button>
+                `;
+                
+                clipsSection.appendChild(buttonContainer);
+                
+                // Add event listeners
+                document.getElementById('exportJSONBtn').addEventListener('click', () => {
+                    this.exportProcessingJSON(segments);
+                });
+                
+                document.getElementById('exportSummaryBtn').addEventListener('click', () => {
+                    this.showProcessingSummary(segments);
+                });
+                
+                document.getElementById('clearOverlaysBtn').addEventListener('click', () => {
+                    if (this.overlayEngine) {
+                        this.overlayEngine.clearAllOverlays();
+                        alert('All overlays cleared');
+                    }
+                });
+            }
+
+            /**
+             * Export processing JSON for algorithmic video cutting
+             */
+            exportProcessingJSON(segments) {
+                console.log('📄 Exporting processing JSON...');
+                
+                const videoMetadata = {
+                    title: document.getElementById('docTitle').textContent,
+                    format: 'mp4',
+                    frameRate: 25,
+                    resolution: '1920x1080'
+                };
+                
+                const jsonData = this.jsonExporter.downloadJSON(segments, 'bbc_documentary_processing');
+                
+                // Show success message
+                alert(`✅ Processing JSON exported successfully!\n\nFile contains:\n- ${segments.length} segments\n- ${jsonData.text_overlays.total_overlays} text overlays\n- ${jsonData.transitions.total_transitions} transitions\n- Complete algorithmic cutting instructions`);
+            }
+
+            /**
+             * Show processing summary
+             */
+            showProcessingSummary(segments) {
+                const summary = this.jsonExporter.exportSummary(segments);
+                
+                const summaryHTML = `
+                    <div style="background: rgba(0,0,0,0.9); color: white; padding: 30px; border-radius: 15px; max-width: 600px; margin: 20px auto;">
+                        <h2 style="color: #c41e3a; text-align: center; margin-bottom: 20px;">🎬 Processing Summary</h2>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                                <h4>📊 Content Analysis</h4>
+                                <p><strong>Total Segments:</strong> ${summary.total_segments}</p>
+                                <p><strong>Duration:</strong> ${Math.round(summary.total_duration / 1000)}s</p>
+                                <p><strong>Complexity:</strong> ${summary.processing_complexity}</p>
+                            </div>
+                            
+                            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                                <h4>🎭 Visual Elements</h4>
+                                <p><strong>Text Overlays:</strong> ${summary.total_overlays}</p>
+                                <p><strong>Transitions:</strong> ${summary.total_transitions}</p>
+                                <p><strong>Est. Render Time:</strong> ${summary.estimated_render_time}s</p>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 20px;">
+                            <p style="color: #cccccc;">Ready for algorithmic video processing with frame-perfect cuts and BBC-style overlays.</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;';
+                modal.innerHTML = summaryHTML;
+                
+                // Close on click
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                });
+                
+                document.body.appendChild(modal);
             }
         }
 
