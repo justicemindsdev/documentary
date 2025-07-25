@@ -1,4 +1,4 @@
-e// Load configuration with production credentials
+// Load configuration with production credentials
 const AI_MODELS = {
     deepseek: { 
         description: 'Active Forensic Intelligence',
