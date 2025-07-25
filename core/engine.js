@@ -53,21 +53,34 @@ const supabase = window.supabase ? window.supabase.createClient(
                 this.updateModelStatus();
                 this.loadVideoLibrary();
                 this.setupDragAndDrop();
+                this.checkGenerateButtonState(); // Initialize button state
                 
                 console.log('🎬 BBC Documentary Maker with AI Media Intelligence and Algorithmic Cutting initialized');
             }
 
             initializeEventListeners() {
-                // File upload handlers
-                document.getElementById('videoFile').addEventListener('change', (e) => {
+                // File upload handlers with debugging
+                const videoFileInput = document.getElementById('videoFile');
+                const transcriptFileInput = document.getElementById('transcriptFile');
+                const documentsFileInput = document.getElementById('documentsFile');
+                
+                if (!videoFileInput || !transcriptFileInput || !documentsFileInput) {
+                    console.error('❌ Upload input elements not found in DOM');
+                    return;
+                }
+                
+                videoFileInput.addEventListener('change', (e) => {
+                    console.log('🎬 Video file selected:', e.target.files[0]?.name);
                     this.handleVideoUpload(e.target.files[0]);
                 });
 
-                document.getElementById('transcriptFile').addEventListener('change', (e) => {
+                transcriptFileInput.addEventListener('change', (e) => {
+                    console.log('📝 Transcript file selected:', e.target.files[0]?.name);
                     this.handleTranscriptUpload(e.target.files[0]);
                 });
 
-                document.getElementById('documentsFile').addEventListener('change', (e) => {
+                documentsFileInput.addEventListener('change', (e) => {
+                    console.log('📄 Documents selected:', e.target.files.length);
                     this.handleDocumentsUpload(Array.from(e.target.files));
                 });
 
@@ -78,18 +91,35 @@ const supabase = window.supabase ? window.supabase.createClient(
                 mainVideo.addEventListener('loadedmetadata', () => this.updateDuration());
 
                 // Show transcript input on click
-                document.getElementById('transcriptUpload').addEventListener('dblclick', () => {
-                    document.getElementById('transcriptText').style.display = 'block';
-                    document.getElementById('transcriptText').focus();
-                });
+                const transcriptUpload = document.getElementById('transcriptUpload');
+                const transcriptText = document.getElementById('transcriptText');
+                
+                if (transcriptUpload && transcriptText) {
+                    transcriptUpload.addEventListener('dblclick', () => {
+                        console.log('📝 Opening transcript text area');
+                        transcriptText.style.display = 'block';
+                        transcriptText.focus();
+                    });
 
-                // Process transcript text
-                document.getElementById('transcriptText').addEventListener('blur', (e) => {
-                    if (e.target.value.trim()) {
-                        this.transcript = this.parseTranscript(e.target.value);
-                        this.updateUploadStatus('transcriptUpload', '✅ Transcript Added', 'success');
-                    }
-                });
+                    // Process transcript text
+                    transcriptText.addEventListener('blur', (e) => {
+                        const text = e.target.value.trim();
+                        if (text) {
+                            console.log('📝 Processing pasted transcript, length:', text.length);
+                            this.transcript = this.parseTranscript(text);
+                            this.updateUploadStatus('transcriptUpload', '✅ Transcript Added', 'success');
+                            console.log('✅ Transcript processed:', this.transcript.length, 'entries');
+                            this.checkGenerateButtonState();
+                        }
+                    });
+
+                    // Also process on Enter key
+                    transcriptText.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && e.ctrlKey) {
+                            e.target.blur(); // Trigger processing
+                        }
+                    });
+                }
             }
 
             setupDragAndDrop() {
@@ -122,40 +152,76 @@ const supabase = window.supabase ? window.supabase.createClient(
             }
 
             async handleVideoUpload(file) {
-                if (!file) return;
+                console.log('🎬 Starting video upload:', file?.name);
                 
-                this.video = file;
-                const videoUrl = URL.createObjectURL(file);
+                if (!file) {
+                    console.error('❌ No video file provided');
+                    return;
+                }
                 
-                const mainVideo = document.getElementById('mainVideo');
-                mainVideo.src = videoUrl;
-                
-                // Initialize overlay engine when video is loaded
-                mainVideo.addEventListener('loadedmetadata', () => {
-                    this.overlayEngine = new VideoOverlayEngine(mainVideo);
-                    console.log('🎭 Video overlay engine initialized');
-                });
-                
-                this.updateUploadStatus('videoUpload', `✅ ${file.name}`, 'success');
-                this.updateDocumentaryTitle(`Documentary: ${file.name.replace(/\.[^/.]+$/, "")}`);
+                try {
+                    this.video = file;
+                    const videoUrl = URL.createObjectURL(file);
+                    console.log('✅ Video URL created:', videoUrl);
+                    
+                    const mainVideo = document.getElementById('mainVideo');
+                    if (!mainVideo) {
+                        console.error('❌ Main video element not found');
+                        return;
+                    }
+                    
+                    mainVideo.src = videoUrl;
+                    
+                    // Initialize overlay engine when video is loaded
+                    mainVideo.addEventListener('loadedmetadata', () => {
+                        this.overlayEngine = new VideoOverlayEngine(mainVideo);
+                        console.log('🎭 Video overlay engine initialized');
+                    });
+                    
+                    mainVideo.addEventListener('error', (e) => {
+                        console.error('❌ Video load error:', e);
+                        this.updateUploadStatus('videoUpload', `❌ Error loading video`, 'error');
+                    });
+                    
+                    this.updateUploadStatus('videoUpload', `✅ ${file.name}`, 'success');
+                    this.updateDocumentaryTitle(`Documentary: ${file.name.replace(/\.[^/.]+$/, "")}`);
+                    
+                    console.log('✅ Video upload completed successfully');
+                } catch (error) {
+                    console.error('❌ Video upload error:', error);
+                    this.updateUploadStatus('videoUpload', `❌ Upload failed`, 'error');
+                }
             }
 
             async handleTranscriptUpload(file) {
-                if (!file) return;
+                console.log('📝 Starting transcript upload:', file?.name);
+                
+                if (!file) {
+                    console.error('❌ No transcript file provided');
+                    return;
+                }
                 
                 try {
                     let text;
                     
                     if (file.type === 'application/pdf') {
                         text = `PDF transcript from ${file.name}. This would be extracted using PDF.js library in production.`;
+                        console.log('📄 PDF file detected, using demo content');
                         this.updateUploadStatus('transcriptUpload', `✅ PDF ${file.name} (Demo mode)`, 'success');
                     } else {
                         text = await file.text();
+                        console.log('📝 Text extracted, length:', text.length);
                         this.updateUploadStatus('transcriptUpload', `✅ ${file.name}`, 'success');
                     }
                     
                     this.transcript = this.parseTranscript(text);
+                    console.log('✅ Transcript parsed, entries:', this.transcript.length);
+                    
+                    // Enable generate button if we have both video and transcript
+                    this.checkGenerateButtonState();
+                    
                 } catch (error) {
+                    console.error('❌ Transcript upload error:', error);
                     this.updateUploadStatus('transcriptUpload', `❌ Error reading file`, 'error');
                 }
             }
@@ -280,13 +346,18 @@ const supabase = window.supabase ? window.supabase.createClient(
             }
 
             async generateDocumentaryClips() {
+                console.log('🎬 Starting documentary clip generation...');
+                
                 const customPrompt = document.getElementById('customPrompt').value.trim();
                 
                 // Check if we have transcript data
                 if (!this.transcript || this.transcript.length === 0) {
+                    console.error('❌ No transcript data available');
                     alert('Please upload a transcript or paste text content first.');
                     return;
                 }
+                
+                console.log('📊 Transcript data:', this.transcript.length, 'entries');
 
                 this.showProcessing('🎬 Analyzing transcript content...', 'Processing your content for documentary segments');
                 document.getElementById('generateClips').disabled = true;
@@ -1224,6 +1295,26 @@ Generate 8-12 clips that would create a professional BBC/Netflix quality documen
                 });
                 
                 document.body.appendChild(modal);
+            }
+
+            /**
+             * Check if generate button should be enabled
+             */
+            checkGenerateButtonState() {
+                const generateBtn = document.getElementById('generateClips');
+                if (generateBtn) {
+                    const hasTranscript = this.transcript && this.transcript.length > 0;
+                    generateBtn.disabled = !hasTranscript;
+                    
+                    if (hasTranscript) {
+                        generateBtn.style.opacity = '1';
+                        generateBtn.textContent = '🎬 Generate Documentary Clips';
+                        console.log('✅ Generate button enabled');
+                    } else {
+                        generateBtn.style.opacity = '0.5';
+                        generateBtn.textContent = '📝 Upload Transcript First';
+                    }
+                }
             }
         }
 
