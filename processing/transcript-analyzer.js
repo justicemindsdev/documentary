@@ -676,40 +676,249 @@ class TranscriptAnalyzer {
     }
 
     /**
-     * Create basic segments when analysis fails
+     * Create powerful, meaningful segments with deep content analysis
      */
     createBasicSegments(transcript) {
-        console.log('🔄 Creating basic segments...');
+        console.log('🔄 Creating powerful documentary segments...');
         
         const processedTranscript = this.processTranscriptData(transcript);
         const segments = [];
-        const segmentSize = Math.max(3, Math.floor(processedTranscript.length / 6));
         
-        for (let i = 0; i < processedTranscript.length; i += segmentSize) {
-            const chunk = processedTranscript.slice(i, i + segmentSize);
-            if (chunk.length === 0) continue;
+        // Analyze the full content first for powerful insights
+        const fullText = processedTranscript.map(e => e.text).join(' ');
+        const powerfulMoments = this.identifyPowerfulMoments(fullText, processedTranscript);
+        
+        // Create segments based on powerful moments
+        powerfulMoments.forEach((moment, index) => {
+            const relatedEntries = processedTranscript.filter(entry => 
+                entry.start >= moment.startTime && entry.end <= moment.endTime
+            );
             
-            const start = chunk[0].start;
-            const end = chunk[chunk.length - 1].end;
-            const content = chunk.map(entry => entry.text).join(' ');
+            if (relatedEntries.length === 0) return;
+            
+            const content = relatedEntries.map(entry => entry.text).join(' ');
+            const speakers = [...new Set(relatedEntries.map(e => e.speaker))];
             
             segments.push({
-                id: `basic_${segments.length + 1}`,
-                title: `Segment ${segments.length + 1}`,
-                description: `Documentary segment containing meaningful dialogue and content.`,
-                startTime: start,
-                endTime: end,
-                displayStart: this.msToTimeDisplay(start),
-                displayEnd: this.msToTimeDisplay(end),
+                id: `powerful_${index + 1}`,
+                title: moment.title,
+                description: moment.description,
+                startTime: moment.startTime,
+                endTime: moment.endTime,
+                displayStart: this.msToTimeDisplay(moment.startTime),
+                displayEnd: this.msToTimeDisplay(moment.endTime),
+                category: moment.category,
+                intensity: moment.intensity,
+                speakers: speakers,
+                keyQuotes: moment.keyQuotes,
+                actualContent: content,
+                transcriptEntries: relatedEntries.length,
+                duration: Math.round((moment.endTime - moment.startTime) / 1000),
+                wordCount: content.split(' ').length,
+                documentaryValue: moment.documentaryValue,
+                cutTiming: this.calculateOptimalCutTiming({ 
+                    start_ms: moment.startTime, 
+                    end_ms: moment.endTime 
+                }, processedTranscript),
+                textOverlays: this.generateTextOverlays({ 
+                    title: moment.title,
+                    start_ms: moment.startTime,
+                    end_ms: moment.endTime,
+                    key_quotes: moment.keyQuotes,
+                    speakers: speakers
+                })
+            });
+        });
+        
+        // If no powerful moments found, create smart default segments
+        if (segments.length === 0) {
+            return this.createSmartDefaultSegments(processedTranscript);
+        }
+        
+        console.log('✅ Created', segments.length, 'powerful documentary segments');
+        return segments;
+    }
+
+    /**
+     * Identify powerful, meaningful moments in the transcript
+     */
+    identifyPowerfulMoments(fullText, transcript) {
+        const moments = [];
+        const textLower = fullText.toLowerCase();
+        
+        // Look for powerful storytelling patterns
+        const powerPatterns = [
+            {
+                patterns: ['never told anyone', 'first time', 'secret', 'confession'],
+                category: 'revelation',
+                intensity: 9,
+                titlePrefix: 'The Untold Truth',
+                description: 'A powerful revelation that changes everything we thought we knew.'
+            },
+            {
+                patterns: ['turning point', 'changed everything', 'moment I realized', 'suddenly understood'],
+                category: 'key_moment',
+                intensity: 8,
+                titlePrefix: 'The Turning Point',
+                description: 'The critical moment that transformed the entire situation.'
+            },
+            {
+                patterns: ['struggled with', 'difficult', 'challenge', 'hardest part'],
+                category: 'conflict',
+                intensity: 7,
+                titlePrefix: 'Facing the Challenge',
+                description: 'The human struggle that reveals true character and determination.'
+            },
+            {
+                patterns: ['learned that', 'discovered', 'found out', 'investigation revealed'],
                 category: 'insight',
                 intensity: 6,
-                speakers: [...new Set(chunk.map(e => e.speaker))],
-                keyQuotes: [content.split('.')[0] + '.'],
+                titlePrefix: 'The Discovery',
+                description: 'New insights that illuminate the deeper truth of the story.'
+            },
+            {
+                patterns: ['felt', 'emotional', 'heartbreaking', 'overwhelming'],
+                category: 'emotional',
+                intensity: 8,
+                titlePrefix: 'The Human Cost',
+                description: 'A deeply personal moment that shows the emotional reality.'
+            }
+        ];
+
+        // Find moments for each pattern
+        powerPatterns.forEach(pattern => {
+            pattern.patterns.forEach(phrase => {
+                const phraseIndex = textLower.indexOf(phrase);
+                if (phraseIndex !== -1) {
+                    // Find the transcript entry containing this phrase
+                    let wordCount = 0;
+                    let targetEntry = null;
+                    
+                    for (const entry of transcript) {
+                        const entryWordCount = entry.text.split(' ').length;
+                        if (wordCount <= phraseIndex && phraseIndex < wordCount + entryWordCount) {
+                            targetEntry = entry;
+                            break;
+                        }
+                        wordCount += entryWordCount;
+                    }
+                    
+                    if (targetEntry) {
+                        const startTime = Math.max(0, targetEntry.start - 2000); // 2s before
+                        const endTime = targetEntry.end + 10000; // 10s after for context
+                        
+                        // Extract meaningful quote around the phrase
+                        const contextText = this.extractContextAroundPhrase(fullText, phraseIndex, 100);
+                        const quote = this.extractPowerfulQuote(contextText);
+                        
+                        moments.push({
+                            startTime: startTime,
+                            endTime: Math.min(endTime, transcript[transcript.length - 1]?.end || endTime),
+                            title: `${pattern.titlePrefix}: "${quote.substring(0, 30)}..."`,
+                            description: pattern.description,
+                            category: pattern.category,
+                            intensity: pattern.intensity,
+                            keyQuotes: [quote],
+                            documentaryValue: `Captures ${pattern.category} moment with authentic emotional impact`,
+                            phrase: phrase,
+                            context: contextText
+                        });
+                    }
+                }
+            });
+        });
+
+        // Remove duplicates and sort by power/intensity
+        const uniqueMoments = this.removeDuplicateMoments(moments);
+        return uniqueMoments.sort((a, b) => b.intensity - a.intensity).slice(0, 8); // Top 8 most powerful
+    }
+
+    /**
+     * Extract context around a powerful phrase
+     */
+    extractContextAroundPhrase(text, phraseIndex, contextLength) {
+        const start = Math.max(0, phraseIndex - contextLength);
+        const end = Math.min(text.length, phraseIndex + contextLength);
+        return text.substring(start, end).trim();
+    }
+
+    /**
+     * Extract a powerful quote from context
+     */
+    extractPowerfulQuote(contextText) {
+        // Find the most complete sentence
+        const sentences = contextText.split(/[.!?]/).filter(s => s.trim().length > 10);
+        if (sentences.length > 0) {
+            // Return the longest, most meaningful sentence
+            return sentences.reduce((longest, current) => 
+                current.length > longest.length ? current : longest
+            ).trim() + '.';
+        }
+        return contextText.substring(0, 80) + '...';
+    }
+
+    /**
+     * Remove duplicate or overlapping moments
+     */
+    removeDuplicateMoments(moments) {
+        const unique = [];
+        const timeThreshold = 10000; // 10 seconds
+        
+        moments.forEach(moment => {
+            const hasOverlap = unique.some(existing => 
+                Math.abs(moment.startTime - existing.startTime) < timeThreshold ||
+                (moment.startTime < existing.endTime && moment.endTime > existing.startTime)
+            );
+            
+            if (!hasOverlap) {
+                unique.push(moment);
+            }
+        });
+        
+        return unique;
+    }
+
+    /**
+     * Create smart default segments when no powerful moments found
+     */
+    createSmartDefaultSegments(transcript) {
+        console.log('📝 Creating smart default segments...');
+        
+        const segments = [];
+        const totalDuration = transcript[transcript.length - 1]?.end || 60000;
+        const segmentCount = Math.min(6, Math.max(3, Math.floor(transcript.length / 4)));
+        const segmentDuration = totalDuration / segmentCount;
+        
+        for (let i = 0; i < segmentCount; i++) {
+            const startTime = i * segmentDuration;
+            const endTime = Math.min((i + 1) * segmentDuration, totalDuration);
+            
+            const segmentEntries = transcript.filter(entry => 
+                entry.start >= startTime && entry.end <= endTime
+            );
+            
+            if (segmentEntries.length === 0) continue;
+            
+            const content = segmentEntries.map(e => e.text).join(' ');
+            const firstSentence = content.split(/[.!?]/)[0] + '.';
+            
+            segments.push({
+                id: `smart_${i + 1}`,
+                title: `Key Discussion ${i + 1}`,
+                description: `Important dialogue revealing crucial information and context.`,
+                startTime: startTime,
+                endTime: endTime,
+                displayStart: this.msToTimeDisplay(startTime),
+                displayEnd: this.msToTimeDisplay(endTime),
+                category: i === 0 ? 'context' : i === segmentCount - 1 ? 'insight' : 'key_moment',
+                intensity: 6 + (i % 3), // Vary intensity
+                speakers: [...new Set(segmentEntries.map(e => e.speaker))],
+                keyQuotes: [firstSentence],
                 actualContent: content,
-                transcriptEntries: chunk.length,
-                duration: Math.round((end - start) / 1000),
+                transcriptEntries: segmentEntries.length,
+                duration: Math.round((endTime - startTime) / 1000),
                 wordCount: content.split(' ').length,
-                documentaryValue: 'Extracted from authentic conversation content'
+                documentaryValue: 'Essential narrative content with authentic dialogue'
             });
         }
         

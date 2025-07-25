@@ -376,11 +376,21 @@ const supabase = window.supabase ? window.supabase.createClient(
                 document.getElementById('generateClips').disabled = true;
 
                 try {
+                    // Check if TranscriptAnalyzer is available
+                    if (typeof TranscriptAnalyzer === 'undefined') {
+                        console.error('❌ TranscriptAnalyzer not loaded');
+                        throw new Error('TranscriptAnalyzer class not found');
+                    }
+                    
                     // Use the improved transcript analyzer (no expensive API calls)
                     const analyzer = new TranscriptAnalyzer();
+                    console.log('✅ TranscriptAnalyzer initialized');
                     
                     this.showProcessing('📊 Extracting meaningful segments...', 'Identifying key moments and themes');
+                    console.log('🔍 Starting analysis with transcript:', this.transcript.length, 'entries');
+                    
                     const segments = await analyzer.analyzeTranscript(this.transcript, customPrompt);
+                    console.log('📊 Analysis complete, segments generated:', segments ? segments.length : 0);
                     
                     if (segments && segments.length > 0) {
                         this.clips = segments;
