@@ -48,6 +48,7 @@ const supabase = window.supabase ? window.supabase.createClient(
                 // Initialize new processing systems
                 this.overlayEngine = null;
                 this.jsonExporter = new DocumentaryJSONExporter();
+                this.audioTranscriber = new AudioTranscriptionEngine();
                 
                 this.initializeEventListeners();
                 this.updateModelStatus();
@@ -109,6 +110,11 @@ const supabase = window.supabase ? window.supabase.createClient(
                             this.transcript = this.parseTranscript(text);
                             this.updateUploadStatus('transcriptUpload', '✅ Transcript Added', 'success');
                             console.log('✅ Transcript processed:', this.transcript.length, 'entries');
+                            
+                            // Remove auto-transcription option if present
+                            const autoOption = document.getElementById('autoTranscriptionOption');
+                            if (autoOption) autoOption.remove();
+                            
                             this.checkGenerateButtonState();
                         }
                     });
@@ -186,6 +192,9 @@ const supabase = window.supabase ? window.supabase.createClient(
                     this.updateUploadStatus('videoUpload', `✅ ${file.name}`, 'success');
                     this.updateDocumentaryTitle(`Documentary: ${file.name.replace(/\.[^/.]+$/, "")}`);
                     
+                    // Add auto-transcription option
+                    this.showAutoTranscriptionOption();
+                    
                     console.log('✅ Video upload completed successfully');
                 } catch (error) {
                     console.error('❌ Video upload error:', error);
@@ -216,6 +225,10 @@ const supabase = window.supabase ? window.supabase.createClient(
                     
                     this.transcript = this.parseTranscript(text);
                     console.log('✅ Transcript parsed, entries:', this.transcript.length);
+                    
+                    // Remove auto-transcription option if present
+                    const autoOption = document.getElementById('autoTranscriptionOption');
+                    if (autoOption) autoOption.remove();
                     
                     // Enable generate button if we have both video and transcript
                     this.checkGenerateButtonState();
@@ -1314,6 +1327,123 @@ Generate 8-12 clips that would create a professional BBC/Netflix quality documen
                         generateBtn.style.opacity = '0.5';
                         generateBtn.textContent = '📝 Upload Transcript First';
                     }
+                }
+            }
+
+            /**
+             * Show auto-transcription option when video is uploaded without transcript
+             */
+            showAutoTranscriptionOption() {
+                // Check if transcript is already available
+                if (this.transcript && this.transcript.length > 0) {
+                    return; // Already have transcript
+                }
+
+                // Remove existing auto-transcription option if present
+                const existing = document.getElementById('autoTranscriptionOption');
+                if (existing) existing.remove();
+
+                // Create auto-transcription button
+                const transcriptUpload = document.getElementById('transcriptUpload');
+                const autoOption = document.createElement('div');
+                autoOption.id = 'autoTranscriptionOption';
+                autoOption.className = 'auto-transcription-option';
+                autoOption.style.cssText = `
+                    margin-top: 10px;
+                    text-align: center;
+                    padding: 15px;
+                    background: linear-gradient(135deg, #4CAF50, #45a049);
+                    border-radius: 10px;
+                    color: white;
+                    cursor: pointer;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                    transition: all 0.3s ease;
+                `;
+
+                autoOption.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 5px;">🎤 Auto-Transcribe Video</div>
+                    <div style="font-size: 0.9em; opacity: 0.9;">Extract audio, transcribe with timestamps & speaker ID</div>
+                `;
+
+                // Add hover effect
+                autoOption.addEventListener('mouseenter', () => {
+                    autoOption.style.transform = 'scale(1.02)';
+                    autoOption.style.boxShadow = '0 6px 12px rgba(0,0,0,0.3)';
+                });
+                
+                autoOption.addEventListener('mouseleave', () => {
+                    autoOption.style.transform = 'scale(1)';
+                    autoOption.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                });
+
+                // Add click handler for auto-transcription
+                autoOption.addEventListener('click', () => {
+                    this.startAutoTranscription();
+                });
+
+                transcriptUpload.parentNode.insertBefore(autoOption, transcriptUpload.nextSibling);
+                console.log('🎤 Auto-transcription option displayed');
+            }
+
+            /**
+             * Start automatic transcription from video
+             */
+            async startAutoTranscription() {
+                if (!this.video) {
+                    alert('Please upload a video first');
+                    return;
+                }
+
+                if (this.audioTranscriber.isProcessing) {
+                    alert('Transcription already in progress');
+                    return;
+                }
+
+                console.log('🎤 Starting auto-transcription...');
+
+                try {
+                    // Show processing overlay
+                    this.showProcessing('🎤 Starting transcription...', 'Analyzing video audio track');
+
+                    // Start transcription
+                    const transcript = await this.audioTranscriber.processVideoToTranscript(
+                        this.video,
+                        (message, progress) => {
+                            this.showProcessing(message, `Progress: ${progress}%`);
+                        }
+                    );
+
+                    // Set the transcript and update UI
+                    this.transcript = transcript;
+                    this.updateUploadStatus('transcriptUpload', '✅ Auto-transcribed from video', 'success');
+                    
+                    // Remove auto-transcription option
+                    const autoOption = document.getElementById('autoTranscriptionOption');
+                    if (autoOption) autoOption.remove();
+                    
+                    // Enable generate button
+                    this.checkGenerateButtonState();
+                    
+                    // Hide processing overlay
+                    this.hideProcessing();
+                    
+                    console.log('✅ Auto-transcription completed:', transcript.length, 'entries');
+                    
+                    // Show success message with option to proceed
+                    const proceed = confirm(
+                        `🎉 Transcription complete!\n\n` +
+                        `Generated ${transcript.length} transcript entries with speaker identification.\n\n` +
+                        `Would you like to proceed with documentary analysis?`
+                    );
+                    
+                    if (proceed) {
+                        this.generateDocumentaryClips();
+                    }
+
+                } catch (error) {
+                    console.error('❌ Auto-transcription failed:', error);
+                    this.hideProcessing();
+                    alert('Transcription failed. You can still upload a transcript manually or try again.');
                 }
             }
         }
