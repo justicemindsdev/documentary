@@ -20,7 +20,7 @@
 
 ## 🚀 Live Demo
 
-**[Try BBC Documentary Maker](https://bbcdocumentarysystem-9h4hmxibm-justiceminds-projects.vercel.app)**
+**[Try BBC Documentary Maker](https://bbcdocumentarysystem-a3qkv70ib-justiceminds-projects.vercel.app)**
 
 ## 🎯 Two Upload Modes
 
@@ -125,7 +125,7 @@ The system generates comprehensive JSON output including:
 
 ## 🚀 Getting Started
 
-1. **Visit the Live App**: [BBC Documentary Maker](https://bbcdocumentarysystem-9h4hmxibm-justiceminds-projects.vercel.app)
+1. **Visit the Live App**: [BBC Documentary Maker](https://bbcdocumentarysystem-a3qkv70ib-justiceminds-projects.vercel.app)
 2. **Upload Your Video**: Drag & drop or click to upload
 3. **Choose Your Mode**:
    - Upload transcript for maximum control
