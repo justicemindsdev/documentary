@@ -125,13 +125,35 @@ The system generates comprehensive JSON output including:
 
 ## 🚀 Getting Started
 
-1. **Visit the Live App**: [BBC Documentary Maker](https://bbcdocumentarysystem-a3qkv70ib-justiceminds-projects.vercel.app)
-2. **Upload Your Video**: Drag & drop or click to upload
-3. **Choose Your Mode**:
+### **📦 Public Access (No Authentication Required):**
+
+1. **Download from GitHub**: [Download ZIP](https://github.com/justicemindsdev/documentary/archive/refs/heads/main.zip)
+2. **Extract Files**: Unzip the download
+3. **Open Locally**: Double-click `index.html` or run a local server
+4. **Full Functionality**: Upload videos, auto-transcribe, generate powerful clips
+
+### **💻 Clone & Run:**
+```bash
+git clone https://github.com/justicemindsdev/documentary.git
+cd documentary
+
+# Option 1: Open directly in browser
+open index.html
+
+# Option 2: Run Python server
+python3 serve.py
+
+# Option 3: Run Node.js server  
+node serve.js
+```
+
+### **🎬 Usage:**
+1. **Upload Your Video**: Drag & drop or click to upload
+2. **Choose Your Mode**:
    - Upload transcript for maximum control
    - Use auto-transcription for convenience
-4. **Generate Segments**: Click "Generate Documentary Clips"
-5. **Export Results**: Download JSON for video editing software
+3. **Generate Segments**: Click "Generate Documentary Clips"
+4. **Export Results**: Download JSON for video editing software
 
 ## 🎬 Example Workflow
 
